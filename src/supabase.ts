@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, RealtimeClient, SupabaseClient } from '@supabase/supabase-js';
 
 export class SupabaseWatcher {
     private _supabase: SupabaseClient;
@@ -8,6 +8,7 @@ export class SupabaseWatcher {
     }
 
     monitorTable(tableName: string, callback: (payload: any) => void) {
+        console.log('Monitoring', tableName);
         this._supabase
             .channel('table-db-changes')
             .on(
@@ -17,7 +18,7 @@ export class SupabaseWatcher {
                     schema: 'public',
                     table: tableName,
                 },
-                callback
+                payload => callback(payload)
             )
             .subscribe();
     }

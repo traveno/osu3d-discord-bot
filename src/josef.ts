@@ -22,7 +22,7 @@ export class Josef {
     }
 
     registerEvents(watcher: SupabaseWatcher) {
-        watcher.monitorTable('fault_log', this._announceFault);
+        watcher.monitorTable('fault_log', payload => this._announceFault(payload));
     }
 
     private _createClient() {
