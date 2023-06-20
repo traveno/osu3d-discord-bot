@@ -33,8 +33,7 @@ function main() {
         return;
     }
 
-    const josef = new Josef(botToken, guildId, debugChannelId);
-    josef.registerEvents(watcher);
+    const josef = new Josef(botToken, guildId, debugChannelId, watcher);
 }
 
 main();

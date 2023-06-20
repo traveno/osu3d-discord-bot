@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=development ts-node-dev src/index.ts",
+    "start": "NODE_ENV=production ts-node-dev src/index.ts",
     "start:prod": "tsc && NODE_ENV=production node build/index.js"
   },
   "keywords": [],
