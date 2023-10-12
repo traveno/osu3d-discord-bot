@@ -2,43 +2,38 @@ import * as dotenv from 'dotenv';
 import { Josef } from "./josef";
 import { SupabaseWatcher } from './supabase';
 
+export let debugMode = true;
 
 function main() {
-    dotenv.config();
+  dotenv.config();
 
-    let supabaseURL = process.env.PUBLIC_SUPABASE_URL;
-    let supabaseAnonKey = process.env.PUBLIC_SUPABASE_ANON_KEY;
+  if (process.env.NODE_ENV === 'production')
+    debugMode = false;
+  else
+    console.log('--- RUNNING IN DEBUG MODE ---');
 
-    if (supabaseURL === undefined || supabaseAnonKey === undefined) {
-        console.error('Could not pull supabase URL or anon key from process.env');
-        return;
-    }
+  const supabaseURL = debugMode ? process.env.TEST_SUPABASE_URL : process.env.PROD_SUPABASE_URL;
+  const supabaseKey = debugMode ? process.env.TEST_SUPABASE_SERVICE_KEY : process.env.PROD_SUPABASE_SERVICE_KEY;
 
-    const watcher = new SupabaseWatcher(supabaseURL, supabaseAnonKey);
+  console.log('Connecting to', supabaseURL);
 
-    let botToken = process.env.BOT_TOKEN;
-    let guildId: string | undefined;
-    let debugChannelId: string | undefined;
+  if (supabaseURL === undefined || supabaseKey === undefined) {
+    console.error('Could not pull supabase URL or anon key from process.env');
+    return;
+  }
 
-    if (process.env.NODE_ENV === 'development') {
-        guildId = process.env.DISCORD_TEST_SERVER;
-        debugChannelId = process.env.DISCORD_TEST_CHANNEL;
-    } else if (process.env.NODE_ENV === 'production') {
-        guildId = process.env.DISCORD_OSU_SERVER;
-        debugChannelId = process.env.DISCORD_OSU_TEST_CHANNEL;
-    }
+  const watcher = new SupabaseWatcher(supabaseURL, supabaseKey);
 
-    if (botToken === undefined || guildId === undefined || debugChannelId === undefined) {
-        console.error('Could not pull bot token, guild ID, or debug channel ID from process.env');
-        return;
-    }
+  const botToken = process.env.BOT_TOKEN;
+  const guildId = debugMode ? process.env.DISCORD_TEST_SERVER : process.env.DISCORD_OSU_SERVER;
+  const debugChannelId = debugMode ? process.env.DISCORD_TEST_CHANNEL : process.env.DISCORD_OSU_TEST_CHANNEL;
 
-    const josef = new Josef(botToken, guildId, debugChannelId, watcher);
+  if (botToken === undefined || guildId === undefined || debugChannelId === undefined) {
+    console.error('Could not pull bot token, guild ID, or debug channel ID from process.env');
+    return;
+  }
+
+  const josef = new Josef(botToken, guildId, debugChannelId, watcher);
 }
 
 main();
-
-
-
-
-

@@ -1,41 +1,60 @@
 import { createClient, RealtimeClient, SupabaseClient } from '@supabase/supabase-js';
 
 export class SupabaseWatcher {
-    private _supabase: SupabaseClient;
+  private _supabase: SupabaseClient;
 
-    constructor(publicURL: string, anonKey: string) {
-        this._supabase = createClient(publicURL, anonKey);
-    }
+  constructor(publicURL: string, serviceKey: string) {
+    this._supabase = createClient(publicURL, serviceKey, { auth: { persistSession: false } });
+    this._supabase.auth.onAuthStateChange(change => console.log('Auth state change', change));
+  }
 
-    monitorTable(tableName: string, callback: (payload: any) => void) {
-        console.log('Monitoring', tableName);
-        this._supabase
-            .channel(`${tableName}-db-changes`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: tableName,
-                },
-                payload => callback(payload)
-            )
-            .subscribe();
-    }
+  monitorTable(tableName: string, callback: (payload: any) => void) {
+    this._supabase
+      .channel(`${tableName}-db-changes`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: tableName
+        },
+        payload => callback(payload)
+      )
+      .subscribe((info, error) => {
+        if (error) throw new Error(error.message);
+        console.log(tableName, info);
+      });
+  }
 
-    getUserLevel(userUUID: string) {
-        return this._supabase
-            .from('user_levels')
-            .select('level')
-            .eq('user_id', userUUID)
-            .single();
-    }
+  monitorChannel(channelName: string, callback: (payload: any) => void) {
+    this._supabase
+      .channel(`${channelName}-channel`)
+      .on(
+        'broadcast',
+        {
+          event: channelName,
+        },
+        message => callback(message.payload)
+      )
+      .subscribe((info, error) => {
+        if (error) throw new Error(error.message);
+        console.log(channelName, info);
+      });
+  }
 
-    getDiscordName(userUUID: string) {
-        return this._supabase
-            .from('profiles')
-            .select('discord')
-            .eq('id', userUUID)
-            .single();
-    }
+  getUserLevel(userUUID: string) {
+    return this._supabase
+      .from('user_levels')
+      .select('level')
+      .eq('user_id', userUUID)
+      .maybeSingle();
+  }
+
+  getDiscordName(userUUID: string) {
+    return this._supabase
+      .from('profiles')
+      .select('discord')
+      .eq('user_id', userUUID)
+      .maybeSingle();
+  }
 }
