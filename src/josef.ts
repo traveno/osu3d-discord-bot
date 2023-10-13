@@ -146,9 +146,10 @@ export class Josef {
   }
 
   private async _announceFault(payload: any) {
-    console.log(payload, this._getBadQuip());
+    if (payload.new.resolved === payload.old.resolved)
+      return;
     if (debugMode) console.log('_announceFault()');
-    const fault = await this._supabaseWatcher.getFaultInfo(payload.new.id) as any;
+    const { data: fault } = await this._supabaseWatcher.getFaultInfo(payload.new.id) as any;
 
     const embed = new EmbedBuilder()
         .setColor(0xFF5555)
