@@ -57,4 +57,19 @@ export class SupabaseWatcher {
       .eq('user_id', userUUID)
       .maybeSingle();
   }
+
+  getFaultInfo(faultId: string) {
+    return this._supabase
+    .from('faults')
+    .select(`
+        *,
+        machine: machine_id (
+            *,
+            machine_def: machine_defs_id (*)
+        ),
+        created_by: created_by_user_id (*)
+    `)
+    .eq('id', faultId)
+    .maybeSingle();
+  }
 }

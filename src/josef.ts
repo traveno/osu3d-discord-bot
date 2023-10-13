@@ -145,37 +145,23 @@ export class Josef {
     user.send('Hello. Your osu3d.io certifications have changed! Any related Discord roles have been applied.');
   }
 
-  private _announceFault(payload: any) {
+  private async _announceFault(payload: any) {
     console.log(payload, this._getBadQuip());
     if (debugMode) console.log('_announceFault()');
-    // async payload => osuTestChannel.send({ content: getBadQuip(), embeds: [await announceFault(payload.new.id)] })
+    const fault = await this._supabaseWatcher.getFaultInfo(payload.new.id) as any;
 
-    // const { data: fault } = await supabase
-    //         .from('fault_log')
-    //         .select(`
-    //             *,
-    //             machine: machine_id (
-    //                 *,
-    //                 machine_def: machine_defs_id (*)
-    //             ),
-    //             created_by: created_by_id (*)
-    //         `)
-    //         .eq('id', faultId)
-    //         .single();
+    const embed = new EmbedBuilder()
+        .setColor(0xFF5555)
+        .setTitle(`Fault Report for ${fault.machine.nickname} (Tier ${fault.machine.tier.toString()})`)
+        .addFields(
+            { name: 'Machine Type', value: `${fault.machine.machine_def.make} ${fault.machine.machine_def.model}` },
+            { name: 'Issuer', value: fault.created_by.full_name ?? 'no account name' },
+            { name: 'Provided Description', value: fault.description }
+        )
+        .setTimestamp();
 
-    // console.log(fault);
-
-    // const embed = new EmbedBuilder()
-    //     .setColor(0xFF5555)
-    //     .setTitle(`Fault Report for ${fault.machine.nickname} (Tier ${fault.machine.tier.toString()})`)
-    //     .addFields(
-    //         { name: 'Machine Type', value: `${fault.machine.machine_def.make} ${fault.machine.machine_def.model}` },
-    //         { name: 'Issuer', value: fault.created_by.full_name ?? 'no account name' },
-    //         { name: 'Provided Description', value: fault.description }
-    //     )
-    //     .setTimestamp();
-
-    // return embed;
+    this._discordDebugChannel?.send(this._getBadQuip());
+    this._discordDebugChannel?.send({ embeds: [embed]});
   }
 
   private _getBadQuip() {
