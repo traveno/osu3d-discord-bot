@@ -71,6 +71,7 @@ export class Josef {
     this._supabaseWatcher.monitorTable('faults', payload => this._announceFault(payload));
     this._supabaseWatcher.monitorTable('profiles', payload => this._onProfileEvent(payload));
     this._supabaseWatcher.monitorChannel('discord-ping', payload => this._pingDiscordUser(payload));
+    this._supabaseWatcher.monitorTable('prints', payload => this._onPrintUpdated(payload));
     
   }
 
@@ -78,6 +79,20 @@ export class Josef {
     this._discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
     this._discordClient.login(this._botToken)
     this._discordClient.once(Events.ClientReady, client => this._onceClientReady(client));
+  }
+
+  private async _onPrintUpdated(payload:any) {
+    if (debugMode) console.log('_onPrintUpdated()');
+    if (payload.eventType !== 'UPDATE') return;
+    if (payload.new.canceled === payload.old.canceled) return;
+    
+    const discordName = (await this._supabaseWatcher.getDiscordName(payload.new.created_by_user_id)).data?.discord as string | null;
+    if (!discordName) return;
+
+    const allMembers = await this._discordGuild!.members.fetch();
+    const user = allMembers.find(m => m.user.username === discordName);
+
+    user?.send('One of your prints was just canceled.');
   }
 
   private async _onceClientReady(client: Client) {
@@ -90,7 +105,7 @@ export class Josef {
   }
 
   private async _pingDiscordUser(payload: any) {
-    console.log('_pingDiscordUser()');
+    if (debugMode) console.log('_pingDiscordUser()');
     const discordName = payload.discord;
 
     const allMembers = await this._discordGuild!.members.fetch();
