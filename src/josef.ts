@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, EmbedBuilder, Guild, Channel, TextChannel, RoleResolvable } from 'discord.js';
+import { Client, Events, GatewayIntentBits, EmbedBuilder, Guild, TextChannel, RoleResolvable } from 'discord.js';
 import { SupabaseWatcher } from './supabase';
 import { debugMode } from './index';
 
@@ -68,17 +68,40 @@ export class Josef {
 
   private _registerEvents() {
     this._supabaseWatcher.monitorTable('user_levels', payload => this._onUserLevelEvent(payload));
-    this._supabaseWatcher.monitorTable('faults', payload => this._announceFault(payload));
+    this._supabaseWatcher.monitorTable('machine_events', payload => this._announceMachineEvent(payload));
     this._supabaseWatcher.monitorTable('profiles', payload => this._onProfileEvent(payload));
     this._supabaseWatcher.monitorChannel('discord-ping', payload => this._pingDiscordUser(payload));
     this._supabaseWatcher.monitorTable('prints', payload => this._onPrintUpdated(payload));
-    
+    this._supabaseWatcher.monitorTable('inv_changes', payload => this._onInventoryChange(payload));
   }
 
   private _createClient() {
     this._discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
     this._discordClient.login(this._botToken)
     this._discordClient.once(Events.ClientReady, client => this._onceClientReady(client));
+  }
+
+  private async _onInventoryChange(payload: any) {
+    if (debugMode) console.log('_onInventoryChange()', payload);
+    if (payload.eventType !== 'INSERT') return;
+
+    const { data: invItem } = await this._supabaseWatcher.getInventoryItemInfo(payload.new.inv_item_id);
+    if (!invItem) return;
+
+    if (invItem.current_stock < invItem.minimum) {
+      const embed = new EmbedBuilder()
+      .setColor(0xFF5555)
+      .setTitle(`Inventory Alert for ${invItem.name}`)
+      .addFields(
+          { name: 'Current Stock', value: `${invItem.current_stock}` },
+          { name: 'Alert Threshold', value: `${invItem.minimum}` },
+      )
+      .setTimestamp()
+      .setURL(`${process.env.PROD_URL}/inventory/${invItem.id}`)
+      .setTimestamp(new Date(invItem.created_at))
+
+      this._discordDebugChannel?.send({ embeds: [embed] });
+    }
   }
 
   private async _onPrintUpdated(payload:any) {
@@ -126,7 +149,6 @@ export class Josef {
   private async _onProfileEvent(payload: any) {
     if (debugMode) console.log('_onProfileEvent()');
     if (payload.new.discord === payload.old.discord) return;
-    console.log(payload);
 
     if (payload.new.discord !== null)
       this._updatePermission(payload.new.user_id, payload.new.discord);
@@ -157,27 +179,30 @@ export class Josef {
     if (roleIds !== undefined)
       await user.roles.add(roleIds);
 
-    user.send('Hello. Your osu3d.io certifications have changed! Any related Discord roles have been applied.');
+    user.send('Your osu3d.io certifications have changed! Any related Discord roles have been applied.');
   }
 
-  private async _announceFault(payload: any) {
-    if (payload.new.resolved === payload.old.resolved)
-      return;
-    if (debugMode) console.log('_announceFault()');
-    const { data: fault } = await this._supabaseWatcher.getFaultInfo(payload.new.id) as any;
+  private async _announceMachineEvent(payload: any) {
+    if (debugMode) console.log('_announceMachineEvent()', payload);
+    if (payload.eventType !== 'INSERT') return;
+    if (payload.new.resolved === payload.old.resolved) return;
+    
+    const { data: event } = await this._supabaseWatcher.getMachineEventInfo(payload.new.id);
+    if (!event) return;
 
     const embed = new EmbedBuilder()
         .setColor(0xFF5555)
-        .setTitle(`Fault Report for ${fault.machine.nickname} (Tier ${fault.machine.tier.toString()})`)
+        .setTitle(`Fault Alert for ${event.machine?.machine_def?.model} (Tier ${event.machine?.tier.toString()})`)
         .addFields(
-            { name: 'Machine Type', value: `${fault.machine.machine_def.make} ${fault.machine.machine_def.model}` },
-            { name: 'Issuer', value: fault.created_by.full_name ?? 'no account name' },
-            { name: 'Provided Description', value: fault.description }
+            { name: 'Printer Type', value: `${event.machine?.machine_def?.make ?? ''} ${event.machine?.machine_def?.model ?? ''}` },
+            { name: 'Issuer', value: event.created_by?.full_name ?? 'no account name' },
+            { name: 'Provided Description', value: event.description ?? '' }
         )
-        .setTimestamp();
+        .setTimestamp()
+        .setURL(`${process.env.PROD_URL}/machines/${event.machine_id}`);
 
-    this._discordDebugChannel?.send(this._getBadQuip());
-    this._discordDebugChannel?.send({ embeds: [embed]});
+    // this._discordDebugChannel?.send(this._getBadQuip());
+    this._discordDebugChannel?.send({ embeds: [embed] });
   }
 
   private _getBadQuip() {

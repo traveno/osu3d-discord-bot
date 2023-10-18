@@ -1,7 +1,50 @@
 import { createClient, RealtimeClient, SupabaseClient } from '@supabase/supabase-js';
+import { Database } from './db-defs';
+
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
+
+export type Print = Tables<'prints'> & {
+  created_by: Tables<'profiles'>
+  status: Enums<'print_status'>
+}
+
+export type MachineEvent = Tables<'machine_events'> & {
+created_by: Tables<'profiles'> | null
+resolved_by: Tables<'profiles'> | null
+machine?: Machine
+print?: Print
+}
+
+export type Machine = Tables<'machines'> & {
+  machine_def: Tables<'machine_defs'>
+  prints: Print[]
+  status: Enums<'machine_status'>
+  events: MachineEvent[]
+}
+
+export type User = Tables<'profiles'> & {
+  perms: Tables<'user_levels'>
+}
+
+export type UserLevel = Tables<'user_levels'>;
+
+export type InventoryItem = Tables<'inv_items'> & {
+  changes: InventoryChange[]
+  created_by: Tables<'profiles'>
+  inv_category: Tables<'inv_categories'>
+  current_stock: number
+}
+
+export type InventoryChange = Tables<'inv_changes'> & {
+  created_by: Tables<'profiles'>
+  running_total: number // this is calculated client side
+}
+
+export type InventoryCategory = Tables<'inv_categories'>;
 
 export class SupabaseWatcher {
-  private _supabase: SupabaseClient;
+  private _supabase: SupabaseClient<Database>;
 
   constructor(publicURL: string, serviceKey: string) {
     this._supabase = createClient(publicURL, serviceKey, { auth: { persistSession: false } });
@@ -58,18 +101,36 @@ export class SupabaseWatcher {
       .maybeSingle();
   }
 
-  getFaultInfo(faultId: string) {
+  getMachineEventInfo(id: string) {
     return this._supabase
-    .from('faults')
-    .select(`
+      .from('machine_events')
+      .select(`
         *,
-        machine: machine_id (
-            *,
-            machine_def: machine_defs_id (*)
+        machine: machines_view (
+          *,
+          machine_def: machine_defs_id (*)
         ),
-        created_by: created_by_user_id (*)
-    `)
-    .eq('id', faultId)
-    .maybeSingle();
+        print: prints_view (
+          *,
+          created_by: created_by_user_id (*)
+        ),
+        created_by: created_by_user_id (*),
+        resolved_by: resolved_by_user_id (*)
+      `)
+      .eq('id', id)
+      .returns<MachineEvent[]>()
+      .maybeSingle();
+  }
+
+  getInventoryItemInfo(id: string) {
+    return this._supabase
+      .from('inv_items_view')
+      .select(`
+        *,
+        changes: inv_changes_view (*)
+      `)
+      .eq('id', id)
+      .returns<InventoryItem[]>()
+      .maybeSingle();
   }
 }
