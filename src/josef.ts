@@ -43,6 +43,7 @@ export class Josef {
   private _discordClient: Client | undefined;
   private _discordGuild: Guild | undefined;
   private _discordDebugChannel: TextChannel | undefined;
+  private _discordMachineEventChannel: TextChannel | undefined;
 
   private _TIER_1_ROLE_ID?: string;
   private _TIER_2_ROLE_ID?: string;
@@ -124,6 +125,10 @@ export class Josef {
     this._discordGuild = client.guilds.cache.get(this._guildId);
     this._discordDebugChannel = client.channels.cache.get(this._debugChannelId) as TextChannel;
 
+    if (!debugMode) {
+      this._discordMachineEventChannel = client.channels.cache.get(process.env.DISCORD_OSU_MACHINE_EVENT_CHANNEL!) as TextChannel;
+    }
+
     this._registerEvents();
   }
 
@@ -198,11 +203,14 @@ export class Josef {
             { name: 'Issuer', value: event.created_by?.full_name ?? 'no account name' },
             { name: 'Provided Description', value: event.description ?? '' }
         )
-        .setTimestamp()
-        .setURL(`${process.env.PROD_URL}/machines/${event.machine_id}`);
+        .setTimestamp();
+        // .setURL(`${process.env.PROD_URL}/machines/${event.machine_id}`);
 
     // this._discordDebugChannel?.send(this._getBadQuip());
-    this._discordDebugChannel?.send({ embeds: [embed] });
+    if (debugMode)
+      this._discordDebugChannel?.send({ embeds: [embed] });
+    else
+      this._discordMachineEventChannel?.send({ embeds: [embed] });
   }
 
   private _getBadQuip() {
