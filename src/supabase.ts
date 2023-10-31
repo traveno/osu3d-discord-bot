@@ -122,6 +122,17 @@ export class SupabaseWatcher {
       .maybeSingle();
   }
 
+  getPrintsInProgress() {
+    return this._supabase
+      .from('prints_view')
+      .select(`
+        *,
+        created_by: created_by_user_id (*)
+      `)
+      .eq('status', 'WORKING')
+      .returns<Print[]>();
+  }
+
   getInventoryItemInfo(id: string) {
     return this._supabase
       .from('inv_items_view')

@@ -134,6 +134,17 @@ export class Josef {
     }
 
     this._registerEvents();
+
+    // Get all in progress prints
+    const { data: activePrints } = await this._supabaseWatcher.getPrintsInProgress();
+    
+    if (activePrints) {
+      for (const print of activePrints) {
+        if (!print.created_by.discord) return;
+        const timeout = new Date(print.done_at).getTime() - new Date().getTime();
+        this._scheduleUserNotification(print.id, print.created_by_user_id, '[OSU3D] One of your prints has completed!', timeout);
+      }
+    }
   }
 
   private async _pingDiscordUser(payload: any) {
