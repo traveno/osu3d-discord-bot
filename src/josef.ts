@@ -234,9 +234,9 @@ export class Josef {
 
     const embed = new EmbedBuilder()
       .setColor(0xFF5555)
-      .setTitle(`Fault Alert for ${event.machine?.machine_def?.model} (Tier ${event.machine?.tier.toString()})`)
+      .setTitle(`Fault Alert for ${event.machine?.nickname}`)
       .addFields(
-          { name: 'Printer Type', value: `${event.machine?.machine_def?.make ?? ''} ${event.machine?.machine_def?.model ?? ''}` },
+          { name: 'Printer Type', value: `${event.machine?.machine_def?.make ?? ''} ${event.machine?.machine_def?.model ?? ''} (Tier ${event.machine?.tier.toString()})` },
           { name: 'Issuer', value: event.created_by?.full_name ?? 'no account name' },
           { name: 'Provided Description', value: event.description ?? '' }
       )
